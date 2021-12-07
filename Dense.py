@@ -76,19 +76,19 @@ class lossCateCrossEntropy(Loss):
     nigativeLog = -np.log(correctConfidence)
     return nigativeLog
 
-    def backward(self, dvalues,  yTrue):
-      # Number of samples
-      samples = len(dvalues)
-      # Number of labels in every sample
-      # We'll use the first sample to count them
-      labels = len(dvalues[0])
-      # If labels are sparse, turn them into one-hot vector
-      if(len(yTrue.shape) == 1):
-        yTrue = np.eye(labels)[yTrue]
-      # Calculate gradient
-      self.dinputs = -y_true / dvalues
-      # Normalize gradient
-      self.dinputs = self.dinputs / samples
+  def backward(self, dvalues,  yTrue):
+    # Number of samples
+    samples = len(dvalues)
+    # Number of labels in every sample
+    # We'll use the first sample to count them
+    labels = len(dvalues[0])
+    # If labels are sparse, turn them into one-hot vector
+    if(len(yTrue.shape) == 1):
+      yTrue = np.eye(labels)[yTrue]
+    # Calculate gradient
+    self.dinputs = -y_true / dvalues
+    # Normalize gradient
+    self.dinputs = self.dinputs / samples
 
 
 
