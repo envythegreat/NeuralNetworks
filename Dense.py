@@ -44,6 +44,17 @@ class Activation_Softmax:
     probabilities = expValues / np.sum(expValues, axis=1, keepdims=True)
     self.output = probabilities
 
+class Loss:
+  # Calculates the data and regularization losses
+  # given model output and ground truth values
+  def calculate(self, output, y):
+    # Calculate sample losses
+    sampLosses = self.forward(output, y)
+    # Calculate mean loss
+    dataLoss = np.mean(sampLosses)
+    # Return loss
+    return dataLoss
+
 
 
 
