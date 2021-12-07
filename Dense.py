@@ -56,7 +56,39 @@ class Loss:
     return dataLoss
 
 
+# Cross-entropy loss
+class lossCateCrossEntropy(Loss):
+  #forward Pass
+  def forward(self, yPred, yTrue):
+    # Number of samples in a batch
+    samples = len(yPred)
+    # Clip data to prevent division by 0
+    # Clip both sides to not drag mean towards any value
+    yPredClipped = np.clip(yPred, 1e-7, 1 - 1e-7)
+    # Probabilities for target values -
+    # only if categorical labels
+    if len(yTrue.shape) == 1:
+      correctConfidence = yPredClipped[range(samples), yTrue]
+    # Mask values - only for one-hot encoded labels
+    elif len(yTrue.shape) == 2:
+      correctConfidence = np.sum(yPredClipped * yTrue, axis=1)
+    #Losses
+    nigativeLog = -np.log(correctConfidence)
+    return nigativeLog
 
+    def backward(self, dvalues,  yTrue):
+      # Number of samples
+      samples = len(dvalues)
+      # Number of labels in every sample
+      # We'll use the first sample to count them
+      labels = len(dvalues[0])
+      # If labels are sparse, turn them into one-hot vector
+      if(len(yTrue.shape) == 1):
+        yTrue = np.eye(labels)[yTrue]
+      # Calculate gradient
+      self.dinputs = -y_true / dvalues
+      # Normalize gradient
+      self.dinputs = self.dinputs / samples
 
 
 
