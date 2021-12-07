@@ -43,6 +43,19 @@ class Activation_Softmax:
     # Normalize them for each sample
     probabilities = expValues / np.sum(expValues, axis=1, keepdims=True)
     self.output = probabilities
+  
+  def backward(self, dvalues):
+    self.dinputs = np.empty_like(dvalues)
+    # Enumerate outputs and gradients
+    for i , (singleOutput, singleDvalues) in enumerate(zip(self.output, dvalues)):
+      # Flatten output array
+      singleOutput = singleOutput.reshape(-1, 1)
+      # Calculate Jacobian matrix of the output and
+      jacobianMatrix = np.diagflat(singleOutput) - np.dot(singleOutput,single_output.T)
+      # Calculate sample-wise gradient
+      # and add it to the array of sample gradients
+      self.dinputs[index] = np.dot(jacobian_matrix, single_dvalues)
+
 
 class Loss:
   # Calculates the data and regularization losses
@@ -89,6 +102,47 @@ class lossCateCrossEntropy(Loss):
     self.dinputs = -y_true / dvalues
     # Normalize gradient
     self.dinputs = self.dinputs / samples
+
+
+
+# Softmax classifier - combined Softmax activation
+# and cross-entropy loss for faster backward step
+class Activation_Softmax_Loss_CategoricalCrossentropy():
+
+  # create activation and loss objects
+  def __init__(self):
+    self.activation = Activation_Softmax()
+    self.loss = lossCateCrossEntropy()
+  
+  def forward(self, input, yTrue):
+    #output layer activation function
+    self.activation.forward(input)
+    #the Output
+    self.output = self.activation.output
+    # Calculate and return loss value
+    return self.loss.calculate(self.output, yTrue)
+  
+  def backward(self, dvalues, yTrue):
+    samples = len(dvalues)
+    # If labels are one-hot encoded,
+    # turn them into discrete values
+    if len(y_true.shape) == 2:
+      y_true = np.argmax(y_true, axis=1)
+    # Copy so we can safely modify
+    self.dinputs = dvalues.copy()
+    # Calculate gradient
+    self.dinputs[range(samples), y_true] -= 1
+    # Normalize gradient
+    self.dinputs = self.dinputs / samples
+
+
+
+
+
+
+
+
+
 
 
 
