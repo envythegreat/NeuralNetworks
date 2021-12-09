@@ -54,7 +54,7 @@ class Activation_Softmax:
       jacobianMatrix = np.diagflat(singleOutput) - np.dot(singleOutput,single_output.T)
       # Calculate sample-wise gradient
       # and add it to the array of sample gradients
-      self.dinputs[index] = np.dot(jacobian_matrix, single_dvalues)
+      self.dinputs[index] = np.dot(jacobianMatrix, singleDvalues)
 
 
 class Loss:
@@ -126,28 +126,27 @@ class Activation_Softmax_Loss_CategoricalCrossentropy():
     samples = len(dvalues)
     # If labels are one-hot encoded,
     # turn them into discrete values
-    if len(y_true.shape) == 2:
-      y_true = np.argmax(y_true, axis=1)
+    if len(yTrue.shape) == 2:
+      yTrue = np.argmax(yTrue, axis=1)
     # Copy so we can safely modify
     self.dinputs = dvalues.copy()
     # Calculate gradient
-    self.dinputs[range(samples), y_true] -= 1
+    self.dinputs[range(samples), yTrue] -= 1
     # Normalize gradient
     self.dinputs = self.dinputs / samples
 
 
 
 
-
-
-
-
-
-
-
-
-
-
+class OptimizerGradientD:
+  # Initialize optimizer - set settings,
+  # learning rate of 1. is default for this optimizer
+  def __init__(self,learning_rate=1.0):
+    self.learning_rate = learning_rate
+  
+  def updateParams(self, layer):
+    layer.weights += -self.learning_rate * layer.dweights
+    layer.biases += -self.learning_rate * layer.dbiases
 
 
 
