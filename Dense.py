@@ -11,6 +11,7 @@ class Layer_Dense:
     self.biases = np.zeros((1, n_neurons))
   # Forward pass
   def forward(self, inputs):
+    self.inputs = inputs
     # Calculate output values from inputs, weights and biases
     self.output = np.dot(inputs, self.weights) + self.biases
   
@@ -26,6 +27,7 @@ class Layer_Dense:
 
 class Activation_ReLU:
   def forward(self, inputs):
+    self.inputs = inputs
     # Calculate output values from inputs
     self.output = np.maximum(0, inputs)
   # Backward pass
@@ -141,51 +143,87 @@ class Activation_Softmax_Loss_CategoricalCrossentropy():
 class OptimizerGradientD:
   # Initialize optimizer - set settings,
   # learning rate of 1. is default for this optimizer
-  def __init__(self,learning_rate=1.0):
+  def __init__(self,learning_rate=1.0, decay=0., momentum=0.):
     self.learning_rate = learning_rate
-  
+    self.currentLR = learning_rate
+    self.decay = decay
+    self.iterations = 0
+    self.momentum = momentum
+
+  # Call once before any params updates
+  def preUpdateParams(self,):
+    if self.decay:
+      self.currentLR = self.learning_rate * (1./ (1. + self.decay * self.iterations))
+
+  # Update Parameters
   def updateParams(self, layer):
-    layer.weights += -self.learning_rate * layer.dweights
-    layer.biases += -self.learning_rate * layer.dbiases
+    # If we use momentum
+    if self.momentum:
+      # If layer does not contain momentum arrays, create them
+      # filled with zeros
+      if not hasattr(layer, 'weightMomentums'):
+        layer.weightMomentums = np.zeros_like(layer.weights)
+        # If there is no momentum array for weights
+        # The array doesn't exist for biases yet either.
+        layer.biasMomentums = np.zeros_like(layer.biases)
+      # Build weight updates with momentum - take previous
+      # updates multiplied by retain factor and update with
+      # current gradients
+      weightUpdates = self.momentum * layer.weightMomentums - self.currentLR * layer.dweights
+      layer.weightMomentums = weightUpdates
+      # Build bias updates
+      biasUpdates = self.momentum * layer.biasMomentums - self.currentLR * layer.dbiases
+      layer.biasMomentums = biasUpdates
+    else:
+      weightUpdates = -self.currentLR * layer.dweights
+      biasUpdates = - self.currentLR * layer.dbiases
+    # Update weights and biases using either
+    # vanilla or momentum updates
+    layer.weights += weightUpdates
+    layer.biases += biasUpdates
+
+    # layer.weights += -self.currentLR * layer.dweights
+    # layer.biases += -self.currentLR * layer.dbiases
+
+  # Call once after any param updates
+  def postUpdateParams(self):
+    self.iterations += 1
 
 
 
+# Create dataset
+X, y = spiral_data(samples=100, classes=3)
+# Create Dense layer with 2 input features and 64 output values
+dense1 = Layer_Dense(2, 64)
+# Create ReLU activation (to be used with Dense layer):
+activation1 = Activation_ReLU()
+# Create second Dense layer with 64 input features (as we take output
+# of previous layer here) and 3 output values (output values)
+dense2 = Layer_Dense(64, 3)
+# Create Softmax classifier's combined loss and activation
+loss_activation = Activation_Softmax_Loss_CategoricalCrossentropy()
+# Create optimizer
+optimizer = OptimizerGradientD(decay=1e-3, momentum=0.9)
 
 
+for epoch in range(10001):
+  dense1.forward(X)
+  activation1.forward(dense1.output)
+  dense2.forward(activation1.output)
+  loss = loss_activation.forward(dense2.output, y)
+  predictions = np.argmax(loss_activation.output, axis=1)
+  if len(y.shape) == 2:
+    y = np.argmax(y, axis=1)
+  accuracy = np.mean(predictions == y)
+  if not epoch % 100:
+    print(f'Epoch :{epoch},' + f' accuracy :{accuracy:.3f},' + f' loss :{loss:.3f},' + f' lr: {optimizer.currentLR:.3f},')
+  
+  loss_activation.backward(loss_activation.output, y)
+  dense2.backward(loss_activation.dinputs)
+  activation1.backward(dense2.dinputs)
+  dense1.backward(activation1.dinputs)
 
-
-# neg_log = -np.log(correct_confidences)
-# verage_loss = np.mean(neg_log)
-# print(average_loss)
-
-# # Create dataset
-# X, y = spiral_data(samples=100, classes=3)
-# # Create Dense layer with 2 input features and 3 output values
-# dense1 = Layer_Dense(2, 3)
-# # Create ReLU activation (to be used with Dense layer):
-# activation1 = Activation_ReLU()
-# # Create second Dense layer with 3 input features (as we take output
-# # of previous layer here) and 3 output values
-# dense2 = Layer_Dense(3, 3)
-# # Create Softmax activation (to be used with Dense layer):
-# activation2 = Activation_Softmax()
-# # Create loss function
-# loss_function = lossCateCrossEntropy()
-# # Perform a forward pass of our training data through this layer
-# dense1.forward(X)
-# # Perform a forward pass through activation function
-# # it takes the output of first dense layer here
-# activation1.forward(dense1.output)
-# # Perform a forward pass through second Dense layer
-# # it takes outputs of activation function of first layer as inputs
-# dense2.forward(activation1.output)
-# # Perform a forward pass through activation function
-# # it takes the output of second dense layer here
-# activation2.forward(dense2.output)
-# # Let's see output of the first few samples:
-# print(activation2.output[:5])
-# # Perform a forward pass through loss function
-# # it takes the output of second dense layer here and returns loss
-# loss = loss_function.calculate(activation2.output, y)
-# # Print loss value
-# print('loss:', loss)
+  optimizer.preUpdateParams() 
+  optimizer.updateParams(dense1)
+  optimizer.updateParams(dense2)
+  optimizer.postUpdateParams()
