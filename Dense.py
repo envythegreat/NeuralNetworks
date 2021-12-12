@@ -191,6 +191,60 @@ class OptimizerGradientD:
 
 
 
+
+
+class OptimiAdagrad:
+  # Initialize optimizer - set settings
+  def __init__(self, learning_rate=1., decay=0., epsilon=1e-7):
+    self.learning_rate = learning_rate
+    self.currentLR = learning_rate
+    self.decay = decay
+    self.iterations = 0
+    self.epsilon = epsilon
+  
+  def preUpdateParams(self):
+    if self.decay:
+      self.currentLR = self.learning_rate * (1. / (1. + self.decay * self.iterations))
+  
+  def updateParams(self, layer):
+    # If layer does not contain cache arrays,
+    # create them filled with zeros
+    if not hasattr(layer, 'weight_cache'):
+      layer.weight_cache = np.zeros_like(layer.weights)
+      layer.bias_cache = np.zeros_like(layer.biases)
+    # Update cache with squared current gradients
+    layer.weightCache += layer.dweights**2
+    layer.biasCache += layer.dbiases**2
+    # Vanilla SGD parameter update + normalization
+    # with square rooted cache
+    layer.weight += -self.currentLR * layer.dweights / (np.sqrt(layer.weightCache) + self.epsilon)
+    layer.bias += -self.currentLR * layer.dweights / (np.sqrt(layer.biasCache) + self.epsilon)
+  def postUpdateParams(self):
+    self.iterations += 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Create dataset
 X, y = spiral_data(samples=100, classes=3)
 # Create Dense layer with 2 input features and 64 output values
