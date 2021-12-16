@@ -219,6 +219,7 @@ class OptimiAdagrad:
     # with square rooted cache
     layer.weight += -self.currentLR * layer.dweights / (np.sqrt(layer.weightCache) + self.epsilon)
     layer.bias += -self.currentLR * layer.dweights / (np.sqrt(layer.biasCache) + self.epsilon)
+  
   def postUpdateParams(self):
     self.iterations += 1
 
@@ -226,11 +227,43 @@ class OptimiAdagrad:
 
 
 
+# Root Mean Square Propagation Optimizer
+class OptimizerRMSprop:
+
+  # init optimizer set Settings
+  def __init__(self, learning_rate=0.01, decay=0, epsilon=1e-7, rho=0.9):
+    self.learning_rate = learning_rate
+    self.currentLR = learning_rate
+    self.decay = decay
+    self.iterations = 0
+    self.epsilon = epsilon
+    self.rho = rho
+
+  def preUpdateParams(self):
+    if self.decay:
+      self.currentLR = self.learning_rate * (1. / (1. + self.decay * self.iterations))
+  
+  def updateParams(self, layer):
+
+    if not hasattr(layer, 'weightCache'):
+      layer.weightCache = np.zeros_like(layer.weights)
+      layer.biasCache = np.zeros_like(layer.biases)
+    # Update cache with squared current gradients
+    layer.weightCache = self.rho * layer.weightCache + (1 - self.rho) * layer.dweights**2
+    layer.biasCache = self.rho * layer.biasCache + (1 - self.rho) * layer.dbiases**2
+
+    # Vanilla SGD parameter update + normalization
+    # with square rooted cache
+    layer.weights += -self.currentLR * layer.dweights / (np.sqrt(layer.weightCache) + self.epsilon)
+    layer.biases += -self.currentLR * layer.dbiases / (np.sqrt(layer.biasCache) + self.epsilon)
+
+  
+  def postUpdateParams(self):
+    self.iterations += 1
 
 
 
-
-
+  
 
 
 
@@ -257,7 +290,7 @@ dense2 = Layer_Dense(64, 3)
 # Create Softmax classifier's combined loss and activation
 loss_activation = Activation_Softmax_Loss_CategoricalCrossentropy()
 # Create optimizer
-optimizer = OptimizerGradientD(decay=1e-3, momentum=0.9)
+optimizer = OptimizerRMSprop(decay=1e-4, learning_rate=0.02, rho=0.999)
 
 
 for epoch in range(10001):
