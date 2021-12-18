@@ -209,7 +209,7 @@ class OptimiAdagrad:
   def updateParams(self, layer):
     # If layer does not contain cache arrays,
     # create them filled with zeros
-    if not hasattr(layer, 'weight_cache'):
+    if not hasattr(layer, 'weightCache'):
       layer.weight_cache = np.zeros_like(layer.weights)
       layer.bias_cache = np.zeros_like(layer.biases)
     # Update cache with squared current gradients
@@ -263,6 +263,57 @@ class OptimizerRMSprop:
 
 
 
+
+
+class OptimizerAdam:
+
+  def __init__(self, learning_rate=0.001, decay=0., epsilon=1e-7,
+                beta_1=0.9, beta_2=0.999):
+    self.learning_rate = learning_rate
+    self.currentLR = learning_rate
+    self.decay = decay
+    self.iterations = 0
+    self.epsilon = epsilon
+    self.beta_1 = beta_1
+    self.beta_2 = beta_2
+  
+  def preUpdateParams(self):
+    if self.decay:
+        self.currentLR = self.learning_rate * (1. / (1. + self.decay * self.iterations))
+  
+  def updateParams(self, layer):
+    # If layer does not contain cache arrays,
+    # create them filled with zeros
+    if not hasattr(layer, 'weightCache'):
+      layer.weightMomentums = np.zeros_like(layer.weights)
+      layer.weightCache = np.zeros_like(layer.weights)
+      layer.biasMomentums = np.zeros_like(layer.biases)
+      layer.biasCache = np.zeros_like(layer.biases)
+    # Update momentum with current gradient
+    layer.weightMomentums = self.beta_1 * layer.weightMomentums + (1 - self.beta_1) * layer.dweights
+    layer.biasMomentums = self.beta_1 * layer.biasMomentums + (1 - self.beta_1) * layer.dbiases
+    # Get corrected momentum
+    # self.iteration is 0 at first pass
+    # and we need to start with 1 here
+    weightMomentumsCorrected = layer.weightMomentums / (1 - self.beta_1 ** (self.iterations + 1))
+    biasMomentumsCorrected = layer.biasMomentums / (1 - self.beta_1 ** (self.iterations + 1))
+    # Update cache with squared current gradients
+    layer.weightCache = self.beta_2 * layer.weightCache + (1 - self.beta_2) * layer.dweights ** 2
+    layer.biasCache = self.beta_2 * layer.biasCache + (1 - self.beta_2) * layer.dbiases ** 2
+    # Get corrected cache
+    weightCacheCorrected = layer.weightCache / (1 - self.beta_2 ** (self.iterations + 1))
+    biasCacheCorrected = layer.biasCache / (1 - self.beta_2 ** (self.iterations + 1))
+    # Vanilla SGD parameter update + normalization
+    # with square rooted cache
+    layer.weights += -self.currentLR * weightMomentumsCorrected / (np.sqrt(weightCacheCorrected) + self.epsilon)
+    layer.biases += -self.currentLR * biasMomentumsCorrected / (np.sqrt(biasCacheCorrected) + self.epsilon)
+
+  def postUpdateParams(self):
+    self.iterations += 1
+
+
+
+
   
 
 
@@ -290,7 +341,7 @@ dense2 = Layer_Dense(64, 3)
 # Create Softmax classifier's combined loss and activation
 loss_activation = Activation_Softmax_Loss_CategoricalCrossentropy()
 # Create optimizer
-optimizer = OptimizerRMSprop(decay=1e-4, learning_rate=0.02, rho=0.999)
+optimizer = OptimizerAdam(decay=1e-5, learning_rate=0.02,)
 
 
 for epoch in range(10001):
