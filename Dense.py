@@ -6,9 +6,21 @@ nnfs.init()
 # Dense layer
 class Layer_Dense:
   # Layer initialization
-  def __init__(self, n_inputs, n_neurons):
+  def __init__(
+    self, n_inputs,
+    n_neurons,
+    weight_regularizer_l1=0,
+    weight_regularizer_l2=0,
+    bias_regularizer_l1=0,
+    bias_regularizer_l2=0
+  ):
     self.weights = 0.01 * np.random.randn(n_inputs, n_neurons)
     self.biases = np.zeros((1, n_neurons))
+    # Set regularization strength
+    self.weightRegularizerL1 = weight_regularizer_l1
+    self.weightRegularizerL2 = weight_regularizer_l2
+    self.biasRegularizerL1 = bias_regularizer_l1
+    self.biasRegularizerL2 = bias_regularizer_l2
   # Forward pass
   def forward(self, inputs):
     self.inputs = inputs
@@ -20,6 +32,26 @@ class Layer_Dense:
     # Gradients on parameters
     self.dweights = np.dot(self.inputs.T, dvalues)
     self.dbiases = np.sum(dvalues, axis=0, keepdims=True)
+
+    # Gradient on regularization
+    # L1 on weights
+    if self.weightRegularizerL1 > 0 :
+      dl1 = np.ones_like(self.weights)
+      dl1[self.weights < 0] = -1
+      self.dweights += self.weightRegularizerL1 * dl1
+    
+    # L2 on weights
+    if self.weightRegularizerL2 > 0:
+      self.dweights += 2 * self.weightRegularizerL2 * self.weights
+    
+    if self.biasRegularizerL1 > 0 :
+      dl1 = np.ones_like(self.biases)
+      dl1[self.biases < 0] = -1
+      self.dbiases += self.biasRegularizerL1 * dl1
+    
+    if self.biasRegularizerL2 > 0:
+      self.dbiases += 2 * self.biasRegularizerL2 * self.biases
+
     # Gradient on values
     self.dinputs = np.dot(dvalues, self.weights.T)
   
@@ -60,6 +92,24 @@ class Activation_Softmax:
 
 
 class Loss:
+
+  def regularizationLoss(self, layer):
+    regularizationLoss = 0
+    # L1 regularization - weights
+    # calculate only when factor greater than 0
+    if layer.weightRegularizerL1 > 0:
+      regularizationLoss += layer.weightRegularizerL1 * np.sum(np.abs(layer.weights))
+    # L2 regularization - weights
+    if layer.weightRegularizerL2 > 0:
+        regularizationLoss += layer.weightRegularizerL2 * np.sum(layer.weights * layer.weights)
+    # L1 regularization - biases
+    # calculate only when factor greater than 0
+    if layer.biasRegularizerL1 > 0 :
+      regularizationLoss += layer.biasRegularizerL1 * np.sum(np.abs(layer.biases))
+    # L2 regularization - biases
+    if layer.biasRegularizerL2 > 0:
+      regularizationLoss += layer.biasRegularizerL2 * np.sum(layer.biases * layer.biases)
+    return regularizationLoss
   # Calculates the data and regularization losses
   # given model output and ground truth values
   def calculate(self, output, y):
@@ -332,7 +382,8 @@ class OptimizerAdam:
 # Create dataset
 X, y = spiral_data(samples=100, classes=3)
 # Create Dense layer with 2 input features and 64 output values
-dense1 = Layer_Dense(2, 64)
+dense1 = Layer_Dense(2, 64, weight_regularizer_l2=5e-4,
+bias_regularizer_l2=5e-4)
 # Create ReLU activation (to be used with Dense layer):
 activation1 = Activation_ReLU()
 # Create second Dense layer with 64 input features (as we take output
@@ -349,12 +400,15 @@ for epoch in range(10001):
   activation1.forward(dense1.output)
   dense2.forward(activation1.output)
   loss = loss_activation.forward(dense2.output, y)
+  data_loss = loss_activation.forward(dense2.output, y)
+  regularization_loss = loss_activation.loss.regularizationLoss(dense1) + loss_activation.loss.regularizationLoss(dense2)
+  loss = data_loss + regularization_loss
   predictions = np.argmax(loss_activation.output, axis=1)
   if len(y.shape) == 2:
     y = np.argmax(y, axis=1)
   accuracy = np.mean(predictions == y)
   if not epoch % 100:
-    print(f'Epoch :{epoch},' + f' accuracy :{accuracy:.3f},' + f' loss :{loss:.3f},' + f' lr: {optimizer.currentLR:.3f},')
+    print(f'Epoch :{epoch},' + f' accuracy :{accuracy:.3f},' + f' loss :{loss:.3f},' + f' lr: {optimizer.currentLR:.3f},'f'data_loss: {data_loss:.3f}, ' +f'reg_loss: {regularization_loss:.3f}), ')
   
   loss_activation.backward(loss_activation.output, y)
   dense2.backward(loss_activation.dinputs)
