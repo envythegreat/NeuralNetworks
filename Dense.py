@@ -75,6 +75,9 @@ class LayerDropout:
 
 
 
+
+
+
 class Activation_ReLU:
   def forward(self, inputs):
     self.inputs = inputs
@@ -206,7 +209,29 @@ class Activation_Softmax_Loss_CategoricalCrossentropy():
     self.dinputs = self.dinputs / samples
 
 
+class Activation_Sigmoid:
 
+  def forward(self, inputs):
+    self.inputs = inputs
+    self.output = 1 / (1 + np.exp(-inputs))
+  
+  def backward(self, dvalues):
+    self.dinputs = dvalues * (1 - self.output) * self.output
+
+
+class Loss_BinaryCrossentropy(Loss):
+  def forward(self, yPred, yTrue):
+    yPredClipped = np.clip(yPred, 1e-7, 1-1e-7)
+    sample_losses = -(yTrue * np.log(yPredClipped)) + (1 - yTrue) * np.log(1- yPredClipped)
+    sample_losses = np.mean(sample_losses, axis=-1)
+    return sample_losses
+
+  def backward(self, dvalues, yTrue):
+    samples = len(dvalues)
+    outputs = len(dvalues[0])
+    clippedValues = np.clip(dvalues, 1e-7, 1-1e-7)
+    self.dinputs = -(yTrue / clippedValues - (1 - yTrue) / (1-clippedValues)) / outputs
+    self.dinputs = self.dinputs / samples
 
 class OptimizerGradientD:
   # Initialize optimizer - set settings,
