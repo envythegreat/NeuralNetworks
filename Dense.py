@@ -380,6 +380,27 @@ class Activation_linear:
     self.dinputs = dvalues.copy()
 
 
+class Loss_MeanSquaredError(Loss):
+  def forward(self, yPred, yTrue):
+    sample_losses = np.mean((y_true - y_pred)**2, axis=-1)
+    return sample_losses
+  
+  def backward(self, dvalues, yTrue):
+    samples = len(dvalues)
+    outputs = len(dvalues[0])
+
+    self.dinputs = -2 * (yTrue - dvalues) / outputs
+    self.dinputs = self.dinputs / samples
+
+class Loss_MeanAbsoluteError(Loss):
+  def forward(self, yPred, yTrue):
+    sample_losses = np.mean(np.abs(yTrue, yPred), axis=-1)
+    return sample_losses
+  def backward(self, dvalues, yTrue):
+    samples = len(dvalues)
+    outputs = len(dvalues[0])
+    self.dinputs = np.sign(yTrue - dvalues) / outputs
+    self.dinputs = self.dinputs / samples
 
 class OptimizerAdam:
 
