@@ -453,11 +453,20 @@ class OptimizerAdam:
 
   
 
-
-
-
-
-
+class Model:
+  def __init__(self):
+    self.layer = []
+  
+  def add(self, layer):
+    self.layer.append(layer)
+  
+  def set(self, *, loss, optimizer):
+    self.loss = loss
+    self.optimizer = optimizer
+  
+  def train(self, X, y, *, epochs=1, printEvery=1):
+    for epoch in range(1, epochs+1):
+      pass
 
 
 
@@ -605,3 +614,4 @@ accuracy = np.mean(predictions==y_test)
 print('Test Data')
 print(f'validation, acc: {accuracy:.3f}, loss: {loss:.3f}')
 print(predictions)
+
