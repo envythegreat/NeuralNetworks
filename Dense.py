@@ -2,7 +2,8 @@ import numpy as np
 import nnfs
 from nnfs.datasets import spiral_data, sine_data
 nnfs.init()
-
+import cv2
+import os
 # Dense layer
 class Layer_Dense:
   # Layer initialization
@@ -669,6 +670,10 @@ class AccuracyCategorical(Accuracy):
     if not self.binary and len(y.shape) == 2 :
       y = np.argmax(y, axis=1)
     return predictions == y
+
+
+
+
 
 
 
