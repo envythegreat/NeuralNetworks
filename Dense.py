@@ -636,30 +636,7 @@ class Model:
                   f'lr: {self.optimizer.currentLR}')
 
     if validation_data is not None:
-      self.loss.new_pass()
-      self.accuracy.new_pass()
-      for step in range(validationStep):
-        if batchSize is None:
-          batch_X = X_val
-          batch_y = y_val
-        else:
-          batch_X = X_val[step*batchSize:(step+1)*batchSize]
-          batch_y = y_val[step*batchSize:(step+1)*batchSize]
-        
-        # Preform the forward pass
-        output = self.forward(batch_X, training=False)
-        # Calculate the loss
-        self.loss.calculate(output, batch_y)
-
-        # Get predictions and calculate an accuracy
-        predictions = self.outputLayerActivation.predictions(output)
-        self.accuracy.calculate(predictions, batch_y)
-
-      validationLoss = self.loss.calculateAccumulated()
-      validationAccuraccy = self.accuracy.calculateAccumulated()
-      print(f'validation, ' +
-                      f'acc: {validationAccuraccy:.3f}, ' +
-                      f'loss: {validationLoss:.3f}')
+      self.evaluate(*validation_data,batchSize=batchSize)
   
   
   
@@ -701,6 +678,37 @@ class Model:
     # in reversed order passing dinputs as a parameter
     for layer in reversed(self.layers):
       layer.backward(layer.next.dinputs)
+
+  def evaluate(self, X_val, y_val, *, batchSize=None):
+    validationStep = 1
+    if batchSize is not None:
+      validationStep = len(X_val) // batchSize
+      if validationStep * batchSize < len(X_val):
+        validationStep += 1
+    self.loss.new_pass()
+    self.accuracy.new_pass()
+    for step in range(validationStep):
+      if batchSize is None:
+        batch_X = X_val
+        batch_y = y_val
+      else:
+        batch_X = X_val[step*batchSize:(step+1)*batchSize]
+        batch_y = y_val[step*batchSize:(step+1)*batchSize]
+        
+      # Preform the forward pass
+      output = self.forward(batch_X, training=False)
+      # Calculate the loss
+      self.loss.calculate(output, batch_y)
+
+      # Get predictions and calculate an accuracy
+      predictions = self.outputLayerActivation.predictions(output)
+      self.accuracy.calculate(predictions, batch_y)
+
+    validationLoss = self.loss.calculateAccumulated()
+    validationAccuraccy = self.accuracy.calculateAccumulated()
+    print(f'validation, ' +
+                      f'acc: {validationAccuraccy:.3f}, ' +
+                      f'loss: {validationLoss:.3f}')
 
 
 
