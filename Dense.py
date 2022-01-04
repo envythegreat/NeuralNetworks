@@ -170,15 +170,15 @@ class Loss:
   
   def calculateAccumulated(self, *, include_regularization=False):
     # Calculate mean loss
-    dataLoss = self.accumulatedSum / accumulatedCount
+    dataLoss = self.accumulatedSum / self.accumulatedCount
     # If just data loss - return it
     if not include_regularization:
       return dataLoss
     return dataLoss, self.regularizationLoss()
   # Reset variables for accumulated loss
   def new_pass(self):
-    self.accumulated_sum = 0
-    self.accumulated_count = 0
+    self.accumulatedSum = 0
+    self.accumulatedCount = 0
 
 
 # Cross-entropy loss
@@ -603,7 +603,7 @@ class Model:
         # Perform the forward pass
         output = self.forward(batch_X, training=True)
         #calculate loss
-        data_loss , regularization_loss = self.loss.calculate(output,batch_y,include_regularization=True)
+        data_loss , regularization_loss = self.loss.calculate(output, batch_y,include_regularization=True)
         loss = data_loss + regularization_loss
         # Get predictions and calculate an accuracy
         predictions = self.outputLayerActivation.predictions(output)
@@ -655,11 +655,11 @@ class Model:
         predictions = self.outputLayerActivation.predictions(output)
         self.accuracy.calculate(predictions, batch_y)
 
-        validationLoss = self.loss.calculateAccumulated()
-        validationAccuraccy = self.accuracy.calculateAccumulated()
-        print(f'validation, ' +
-                      f'acc: {validation_accuracy:.3f}, ' +
-                      f'loss: {validation_loss:.3f}')
+      validationLoss = self.loss.calculateAccumulated()
+      validationAccuraccy = self.accuracy.calculateAccumulated()
+      print(f'validation, ' +
+                      f'acc: {validationAccuraccy:.3f}, ' +
+                      f'loss: {validationLoss:.3f}')
   
   
   
@@ -954,3 +954,68 @@ class AccuracyCategorical(Accuracy):
 # # Train the model
 # model.train(X, y, validation_data=(X_test, y_test),
 # epochs=10000, printEvery=100)
+
+# Loads a MNIST dataset
+# def loadMnistData(dataset, path):
+#   # Scan all the directories and create a list of labels
+#   labels = os.listdir(os.path.join(path, dataset))
+#   # Create lists for samples and labels
+#   X = []
+#   y = []
+#   # For each label folder
+#   for label in labels:
+#     # And for each image in given folde
+#     for file in os.listdir(os.path.join(path, dataset, label)):
+#       # Read the image
+#       image = cv2.imread(os.path.join(path, dataset, label, file), cv2.IMREAD_UNCHANGED)
+
+#       # And append it and a label to the lists
+#       X.append(image)
+      
+#       y.append(label)
+#   # Convert the data to proper numpy arrays and return
+#   print('Data Loaded')
+#   return np.array(X), np.array(y).astype('uint8')
+
+# # MNIST dataset (train + test)
+# def createDataMnist(path):
+#   # Load both sets separately
+#   X, y = loadMnistData('train', path)
+#   X_test, y_test = loadMnistData('test', path)
+#   # And return all the data
+#   return X,y,X_test,y_test
+
+
+
+# X, y, X_test, y_test = createDataMnist('./fashion_mnist_images')
+
+# # shuffling the data so our model stop having bad practices in trianing or over fitting
+# keys = np.array(range(X.shape[0]))
+# np.random.shuffle(keys)
+# X = X[keys]
+# y = y[keys]
+
+
+# # Scale and reshape samples
+# X = (X.reshape(X.shape[0], -1).astype(np.float32) - 127.5) / 127.5
+# X_test = (X_test.reshape(X_test.shape[0], -1).astype(np.float32) - 127.5) / 127.5
+
+
+# model = Model()
+# model.add(Layer_Dense(X.shape[1], 128))
+# model.add(Activation_ReLU())
+# model.add(Layer_Dense(128,128))
+# model.add(Activation_ReLU())
+# model.add(Layer_Dense(128, 10))
+# model.add(Activation_Softmax())
+
+# # Set loss, optimizer and accuracy objects
+# model.set(
+#   loss=lossCateCrossEntropy(),
+#   optimizer=OptimizerAdam(decay=1e-3),
+#   accuracy=AccuracyCategorical()
+# )
+
+# model.finalize()
+
+# model.train(X, y, validation_data=(X_test, y_test), epochs=5, batchSize=128, printEvery=100)
