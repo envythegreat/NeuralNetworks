@@ -1,9 +1,17 @@
 import numpy as np
-import nnfs
-from nnfs.datasets import spiral_data, sine_data
-nnfs.init()
-import cv2
-import os
+# import nnfs
+# from nnfs.datasets import spiral_data, sine_data
+# nnfs.init()
+# import cv2
+# import os
+import pickle
+import copy
+
+
+
+
+
+
 # Dense layer
 class Layer_Dense:
   # Layer initialization
@@ -55,7 +63,13 @@ class Layer_Dense:
 
     # Gradient on values
     self.dinputs = np.dot(dvalues, self.weights.T)
+
+  def getParameters(self):
+    return self.weights, self.biases
   
+  def setParameters(self, weights, biases):
+    self.weights = weights
+    self.biases = biases
 
 
 class LayerDropout:
@@ -508,10 +522,13 @@ class Model:
   def add(self, layer):
     self.layers.append(layer)
   
-  def set(self, *, loss, optimizer, accuracy):
-    self.loss = loss
-    self.optimizer = optimizer
-    self.accuracy = accuracy
+  def set(self, *, loss=None, optimizer=None, accuracy=None):
+    if loss is not None:
+      self.loss = loss
+    if optimizer is not None:
+      self.optimizer = optimizer
+    if accuracy is not None:
+      self.accuracy = accuracy
   
   def finalize(self):
     # Create and set the input layer
@@ -546,7 +563,8 @@ class Model:
       if hasattr(self.layers[i], 'weights'):
         self.trainableLayers.append(self.layers[i])
        # Update loss object with trainable layers
-    self.loss.rememberTrainableLayers(self.trainableLayers)
+    if self.loss is not None:
+      self.loss.rememberTrainableLayers(self.trainableLayers)
     # If output activation is Softmax and
     # loss function is Categorical Cross-Entropy
     # create an object of combined activation
@@ -709,6 +727,82 @@ class Model:
     print(f'validation, ' +
                       f'acc: {validationAccuraccy:.3f}, ' +
                       f'loss: {validationLoss:.3f}')
+
+  def getParameters(self):
+    parameters = []
+    for layer in self.trainableLayers:
+      parameters.append(layer.getParameters())
+    
+    return parameters
+  
+  def setParameters(self, parameters):
+    for parameters_set, layer in zip(parameters, self.trainableLayers):
+      layer.setParameters(*parameters_set)
+
+  def saveParameters(self, path):
+    # Open a file in the binary-write mode
+    # and save parameters to it
+    with open(path, 'wb') as f:
+      pickle.dump(self.getParameters(), f)
+  
+  def loadParameters(self, path):
+    with open(path, 'rb') as f:
+      self.setParameters(pickle.load(f))
+  
+  def save(self, path):
+    # Make a deep copy of current model instance
+    model = copy.deepcopy(self)
+    # Reset accumulated values in loss and accuracy objects
+    model.loss.new_pass()
+    model.accuracy.new_pass()
+    # Remove data from the input layer
+    # and gradients from the loss object
+    model.inputLayer.__dict__.pop('output', None)
+    model.loss.__dict__.pop('dinputs', None)
+
+    for layer in model.layers:
+      for property in ['inputs', 'output', 'dinputs','dweights', 'dbiases']:
+        layer.__dict__.pop(property, None)
+    
+    # Open a file in the binary-write mode and save the model
+    with open(path, 'wb') as f:
+      pickle.dump(model, f)
+  
+  @staticmethod
+  def load(path):
+    with open(path, 'rb') as f:
+      model = pickle.load(f)
+    return model
+  
+  def predict(self, X, *, batchSize=None):
+
+    # Default value if batch size is not being set
+    predictionSteps = 1
+    if batchSize is not None:
+      predictionSteps = len(X) // batchSize
+      # Dividing rounds down. If there are some remaining
+      # data, but not a full batch, this won't include it
+      # Add `1` to include this not full batch
+      if predictionSteps * batchSize < len(X):
+        predictionSteps += 1
+    
+    output = []
+
+    for step in range(predictionSteps):
+      # If batch size is not set -
+      # train using one step and full dataset
+      if batchSize is None:
+        batch_X = X
+      else:
+        batch_X =  X[step*batchSize:(step+1)*batchSize]
+      
+      # Perform the forward pass
+      batchOutput = self.forward(batch_X, training=False)
+      # Append batch prediction to the list of predictions
+      output.append(batchOutput)
+    # Stack and return results
+    return np.vstack(output)
+
 
 
 
